@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STR Scrap Metal - Linear Cutting Optimizer</title>
+    <!-- Tailwind CSS CDN for modern utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar styling for a premium look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Printable optimization rules */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .noPrint {
+                display: none !important;
+            }
+            .print-card {
+                border: 1px solid #cbd5e1 !important;
+                background: white !important;
+                color: black !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+            .print-bar {
+                background: #f1f5f9 !important;
+                border: 1px solid #94a3b8 !important;
+                color: black !important;
+            }
+            .print-segment {
+                border-right: 1.5px dashed #000 !important;
+                background: #e2e8f0 !important;
+                color: black !important;
+            }
+            .print-waste {
+                background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #cbd5e1 10px, #cbd5e1 20px) !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+
+    <!-- Premium Industrial Header -->
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 shadow-lg noPrint">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-emerald-500 text-slate-950 p-2 rounded-lg font-black text-xl tracking-wider">STR</div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">STR Scrap Metal Inc.</h1>
+                    <p class="text-xs text-slate-400">Industrial Steel & Linear Cutting List Optimizer</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="loadSampleData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition duration-200 flex items-center gap-2 border border-slate-700">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Load Sample Work
+                </button>
+                <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-md transition duration-200 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print Shop Sheet
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Custom toast notification container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 noPrint"></div>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+        
+        <!-- Metrics Bar -->
+        <section id="metrics-panel" class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Raw Input</span>
+                <span id="stat-total-raw" class="text-2xl font-bold text-white mt-1">0 in</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Cut Placed</span>
+                <span id="stat-total-cut" class="text-2xl font-bold text-emerald-400 mt-1">0 in</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span class="text-xs font-semibold text-slate-400 tracking-wider">MATERIAL YIELD</span>
+                <span id="stat-yield" class="text-2xl font-bold text-emerald-400 mt-1">0.0%</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span class="text-xs font-semibold text-slate-400 tracking-wider">SCRAP (SAWDUST/LOSS)</span>
+                <span id="stat-waste" class="text-2xl font-bold text-rose-400 mt-1">0.0%</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between col-span-2 lg:col-span-1">
+                <span class="text-xs font-semibold text-slate-400 tracking-wider">RECOVERED OFFCUTS</span>
+                <span id="stat-offcuts" class="text-2xl font-bold text-amber-400 mt-1">0 pcs</span>
+            </div>
+        </section>
+
+        <!-- Unassigned Warning Box -->
+        <div id="unassigned-warning" class="hidden bg-rose-950/40 border border-rose-800/80 rounded-xl p-4 text-rose-200">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <div>
+                    <h4 class="font-bold">Oversized Cuts Detected!</h4>
+                    <p class="text-sm text-rose-300">Some of your cuts are larger than any available standard stock. Please increase your Stock Length or reduce the length of these cuts: <span id="oversized-list" class="font-mono font-bold text-white"></span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inputs and Setup Panels -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 noPrint">
+            
+            <!-- Cuts Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-[420px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                        <span class="bg-emerald-500/10 text-emerald-400 w-6 h-6 rounded flex items-center justify-center text-xs font-bold">1</span>
+                        Required Cuts List
+                    </h3>
+                    <button onclick="clearAllCuts()" class="text-xs text-slate-400 hover:text-rose-400 transition">Clear Cuts</button>
+                </div>
+                
+                <form onsubmit="addCut(event)" class="grid grid-cols-5 gap-2 mb-4">
+                    <div class="col-span-3">
+                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Length</label>
+                        <input type="number" id="cut-length" step="any" min="0.1" required placeholder="Length" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-white">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Quantity</label>
+                        <input type="number" id="cut-qty" min="1" value="1" required class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-white">
+                    </div>
+                    <button type="submit" class="col-span-5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-lg text-sm transition">
+                        + Add Cuts
+                    </button>
+                </form>
+
+                <!-- List Box -->
+                <div class="flex-grow overflow-y-auto border border-slate-800 rounded-lg bg-slate-950 p-2">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800 text-xs">
+                                <th class="pb-2">Length</th>
+                                <th class="pb-2">Qty</th>
+                                <th class="pb-2 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuts-table-body" class="divide-y divide-slate-800 font-mono">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between h-[420px]">
+                <div>
+                    <h3 class="font-bold text-white text-lg flex items-center gap-2 mb-4">
+                        <span class="bg-amber-500/10 text-amber-400 w-6 h-6 rounded flex items-center justify-center text-xs font-bold">2</span>
+                        Settings & Parameters
+                    </h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Material Label</label>
+                            <input type="text" id="setting-material" value="Steel Tube - Round" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Std Stock Length</label>
+                                <input type="number" id="setting-std-length" step="any" min="1" value="240" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Kerf (Blade Width)</label>
+                                <input type="number" id="setting-kerf" step="any" min="0" value="0.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-white">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Min Recovery Length (Offcuts)</label>
+                            <input type="number" id="setting-recovery" step="any" min="0" value="24" class="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-white">
+                            <p class="text-[10px] text-slate-500 mt-1">Leftovers larger than this are marked "reusable offcuts" instead of scrap.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="calculate()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl transition duration-200 tracking-wider uppercase mt-4 flex items-center justify-center gap-2 shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Optimize Cutting List
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Optimize Output Layout (Print Section & Screen) -->
+        <section id="results-section" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 print-card">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white tracking-tight">Optimal Saw Plan</h2>
+                    <p class="text-xs text-slate-400">Follow the visual blueprints below to make cuts with minimal loss.</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs font-semibold text-slate-400 uppercase">Material / Job:</span>
+                    <p id="result-material-title" class="text-sm font-mono font-bold text-emerald-400">Steel Tube - Round</p>
+                </div>
+            </div>
+
+            <!-- Diagrams List -->
+            <div id="diagrams-list" class="space-y-6">
+                <!-- Injected dynamically -->
+                <div class="text-center py-12 text-slate-500 noPrint">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p class="text-sm">No cut list generated yet. Click "Optimize Cutting List" to calculate.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-900 py-6 text-center text-xs text-slate-500 mt-12 noPrint">
+        <p class="mb-1">&copy; 2026 STR Scrap Metal Inc. All Rights Reserved.</p>
+        <p class="text-slate-600">Designed for Johnny & STR Shop floor operations.</p>
+    </footer>
+
+    <!-- Logic Engine Script -->
+    <script>
+        // Global State arrays
+        let cuts = [];
+
+        // UI Helpers: Toast Alert Box
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-900 border-emerald-700 text-emerald-200' : 'bg-rose-900 border-rose-700 text-rose-200';
+            
+            toast.className = `flex items-center gap-2 border px-4 py-3 rounded-lg shadow-lg ${bgClass} transition-all duration-300 transform translate-x-12 opacity-0`;
+            toast.innerHTML = `
+                <span class="text-sm font-semibold">${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-x-12', 'opacity-0');
+            }, 10);
+
+            // Auto removal
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Add a single cut length
+        function addCut(e) {
+            e.preventDefault();
+            const lengthInput = document.getElementById('cut-length');
+            const qtyInput = document.getElementById('cut-qty');
+            
+            const len = parseFloat(lengthInput.value);
+            const qty = parseInt(qtyInput.value);
+
+            if (isNaN(len) || len <= 0 || isNaN(qty) || qty <= 0) return;
+
+            // Check if cut length already exists, add quantity if so
+            const existing = cuts.find(c => c.length === len);
+            if (existing) {
+                existing.qty += qty;
+            } else {
+                cuts.push({ id: Date.now() + Math.random(), length: len, qty: qty });
+            }
+
+            lengthInput.value = '';
+            qtyInput.value = '1';
+            lengthInput.focus();
+
+            renderTables();
+            showToast(`Added ${qty}x ${len}" cuts`);
+            calculate();
+        }
+
+        function removeCut(id) {
+            cuts = cuts.filter(c => c.id !== id);
+            renderTables();
+            calculate();
+        }
+
+        // Clear all cuts
+        function clearAllCuts() {
+            cuts = [];
+            renderTables();
+            calculate();
+            showToast('All cuts cleared', 'info');
+        }
+
+        // Render input tables
+        function renderTables() {
+            // Cuts table
+            const cutsBody = document.getElementById('cuts-table-body');
+            if (cuts.length === 0) {
+                cutsBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-slate-500 text-xs">No cuts added yet</td></tr>`;
+            } else {
+                cutsBody.innerHTML = cuts.map(c => `
+                    <tr class="hover:bg-slate-900/60 group">
+                        <td class="py-2 font-bold text-white">${c.length}"</td>
+                        <td class="py-2 text-slate-400">x${c.qty}</td>
+                        <td class="py-2 text-right">
+                            <button onclick="removeCut(${c.id})" class="text-rose-500 hover:text-rose-400 font-bold text-xs p-1 opacity-60 group-hover:opacity-100 transition">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // Demo Data Loader
+        function loadSampleData() {
+            cuts = [
+                { id: 1, length: 72.5, qty: 3 },
+                { id: 2, length: 48, qty: 5 },
+                { id: 3, length: 36.25, qty: 4 },
+                { id: 4, length: 18, qty: 8 }
+            ];
+
+            document.getElementById('setting-material').value = "Steel Angle Bar - 2x2";
+            document.getElementById('setting-std-length').value = "240";
+            document.getElementById('setting-kerf').value = "0.0";
+            document.getElementById('setting-recovery').value = "24";
+
+            renderTables();
+            calculate();
+            showToast("Successfully loaded demo work list!");
+        }
+
+        // MAIN OPTIMIZER ENGINE (1D Cutting Stock / Bin Packing with Standard Bars)
+        function calculate() {
+            const materialTitle = document.getElementById('setting-material').value || 'Unlabeled Material';
+            document.getElementById('result-material-title').innerText = materialTitle;
+
+            const stdStockLength = parseFloat(document.getElementById('setting-std-length').value) || 240;
+            const kerf = parseFloat(document.getElementById('setting-kerf').value) || 0;
+            const recoveryMin = parseFloat(document.getElementById('setting-recovery').value) || 24;
+
+            if (cuts.length === 0) {
+                document.getElementById('diagrams-list').innerHTML = `
+                    <div class="text-center py-12 text-slate-500 noPrint">
+                        <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <p class="text-sm">No cut list generated yet. Click "Optimize Cutting List" to calculate.</p>
+                    </div>
+                `;
+                resetStats();
+                return;
+            }
+
+            // Flatten requested cuts and sort descending (Best heuristic for 1D Cutting Stock)
+            let flatCuts = [];
+            cuts.forEach(c => {
+                for (let i = 0; i < c.qty; i++) {
+                    flatCuts.push(c.length);
+                }
+            });
+            flatCuts.sort((a, b) => b - a);
+
+            let openBars = []; // Elements: { totalLength, used: [{type: 'cut', length}], remainingSpace }
+            let unassigned = [];
+
+            // Fit every cut FFD strategy
+            flatCuts.forEach(cutLen => {
+                let assigned = false;
+
+                // 1. Try to place in any already opened standard stock bar
+                for (let bar of openBars) {
+                    let neededSpace = cutLen + (bar.used.length > 0 ? kerf : 0);
+                    if (bar.remainingSpace >= neededSpace) {
+                        bar.used.push({ type: 'cut', length: cutLen });
+                        bar.remainingSpace -= neededSpace;
+                        assigned = true;
+                        break;
+                    }
+                }
+
+                // 2. Open a new standard stock bar
+                if (!assigned) {
+                    let barLen = 0;
+
+                    if (stdStockLength >= cutLen) {
+                        barLen = stdStockLength;
+                    } else {
+                        // Cut length exceeds standard stock length
+                        unassigned.push(cutLen);
+                        return;
+                    }
+
+                    openBars.push({
+                        totalLength: barLen,
+                        used: [{ type: 'cut', length: cutLen }],
+                        remainingSpace: barLen - cutLen
+                    });
+                }
+            });
+
+            // Display Warning for Unassigned items
+            const warningEl = document.getElementById('unassigned-warning');
+            const listEl = document.getElementById('oversized-list');
+            if (unassigned.length > 0) {
+                warningEl.classList.remove('hidden');
+                listEl.innerText = unassigned.map(u => `${u}"`).join(', ');
+            } else {
+                warningEl.classList.add('hidden');
+            }
+
+            // Process stats and render results
+            renderResults(openBars, kerf, recoveryMin);
+        }
+
+        // Render visual charts/cuts guide to document
+        function renderResults(bars, kerf, recoveryMin) {
+            const listContainer = document.getElementById('diagrams-list');
+            listContainer.innerHTML = '';
+
+            let totalRawUsed = 0;
+            let totalCutsLength = 0;
+            let totalKerfLoss = 0;
+            let totalRecoveredOffcutsCount = 0;
+
+            bars.forEach((bar, index) => {
+                totalRawUsed += bar.totalLength;
+
+                // Calculate cut sizes, kerfs, offcuts, and raw waste
+                let segmentsHtml = '';
+                let cutsInBar = bar.used.filter(s => s.type === 'cut');
+                let cutsCount = cutsInBar.length;
+                
+                let sumCutsLength = 0;
+                cutsInBar.forEach(c => sumCutsLength += c.length);
+                totalCutsLength += sumCutsLength;
+
+                let kerfLossInBar = (cutsCount - 1) * kerf;
+                totalKerfLoss += kerfLossInBar;
+
+                let finalRemainingSpace = bar.remainingSpace; 
+                let isRecoverable = finalRemainingSpace >= recoveryMin;
+                if (isRecoverable) {
+                    totalRecoveredOffcutsCount++;
+                }
+
+                // Compile UI elements for barSegments
+                cutsInBar.forEach((segment, sIdx) => {
+                    let percentWidth = (segment.length / bar.totalLength) * 100;
+                    
+                    segmentsHtml += `
+                        <div class="print-segment bg-emerald-600 border-r border-slate-900 flex items-center justify-center text-xs font-bold font-mono text-white relative group h-full shadow-inner" style="width: ${percentWidth}%">
+                            <span>${segment.length}"</span>
+                            <span class="absolute bottom-1 right-1 text-[8px] text-emerald-300 opacity-70">Cut #${sIdx+1}</span>
+                        </div>
+                    `;
+
+                    // Add Kerf visualization
+                    if (sIdx < cutsCount - 1) {
+                        let kerfPercent = (kerf / bar.totalLength) * 100;
+                        segmentsHtml += `
+                            <div class="bg-rose-500/80 border-r border-slate-900 h-full relative" style="width: ${kerfPercent}%" title="Blade Kerf (${kerf}')"></div>
+                        `;
+                    }
+                });
+
+                // Add Waste segment at the end
+                if (finalRemainingSpace > 0) {
+                    let wastePercent = (finalRemainingSpace / bar.totalLength) * 100;
+                    let wasteBg = isRecoverable 
+                        ? 'bg-amber-500/30 border-amber-500/50 text-amber-300' 
+                        : 'bg-slate-800/80 border-slate-700/50 text-slate-400';
+                    let wasteLabel = isRecoverable ? 'REUSABLE OFFCUT' : 'SCRAP';
+
+                    segmentsHtml += `
+                        <div class="print-waste ${wasteBg} border-l-2 border-dashed flex flex-col items-center justify-center text-[10px] font-bold font-mono relative h-full shrink-0" style="width: ${wastePercent}%">
+                            <span>${finalRemainingSpace.toFixed(3)}"</span>
+                            <span class="text-[7px] tracking-wide uppercase">${wasteLabel}</span>
+                        </div>
+                    `;
+                }
+
+                // Generate individual Stock layout box
+                let efficiency = ((sumCutsLength / bar.totalLength) * 100).toFixed(1);
+
+                let barCard = document.createElement('div');
+                barCard.className = 'bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3 shadow-md print-card';
+                barCard.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-black text-sm font-mono text-white">BAR #${index + 1}</h4>
+                            <span class="text-xs text-slate-400 font-mono">(${bar.totalLength}" total)</span>
+                            <span class="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Std Stock Bar</span>
+                        </div>
+                        <div class="flex gap-4 text-xs font-mono">
+                            <div><span class="text-slate-400">Yield:</span> <strong class="text-emerald-400">${efficiency}%</strong></div>
+                            <div><span class="text-slate-400">Loss:</span> <strong class="text-rose-400">${finalRemainingSpace.toFixed(3)}"</strong></div>
+                        </div>
+                    </div>
+                    
+                    <!-- SVG/Flex Bar visualizer -->
+                    <div class="print-bar flex h-14 w-full bg-slate-950 border border-slate-800 rounded-lg overflow-hidden relative shadow-inner">
+                        ${segmentsHtml}
+                    </div>
+
+                    <!-- Cut layout notes -->
+                    <div class="text-xs text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                        <div><strong>Cut list sequence:</strong> ${cutsInBar.map(c => `<span class="font-mono text-white underline font-bold">${c.length}"</span>`).join(' <span class="text-rose-500">+</span> ')}</div>
+                        ${kerfLossInBar > 0 ? `<div><span class="text-slate-500">Kerf Loss:</span> <span class="font-mono">${kerfLossInBar.toFixed(3)}"</span></div>` : ''}
+                    </div>
+                `;
+                listContainer.appendChild(barCard);
+            });
+
+            // Calculate final yield stats
+            if (totalRawUsed > 0) {
+                let overallYieldPercent = (totalCutsLength / totalRawUsed) * 100;
+                let kerfLossPercent = (totalKerfLoss / totalRawUsed) * 100;
+                let scrapLossPercent = 100 - overallYieldPercent - kerfLossPercent;
+
+                document.getElementById('stat-total-raw').innerText = `${totalRawUsed.toFixed(1)}"`;
+                document.getElementById('stat-total-cut').innerText = `${totalCutsLength.toFixed(1)}"`;
+                document.getElementById('stat-yield').innerText = `${overallYieldPercent.toFixed(1)}%`;
+                document.getElementById('stat-waste').innerText = `${scrapLossPercent.toFixed(1)}%`;
+                document.getElementById('stat-offcuts').innerText = `${totalRecoveredOffcutsCount} pcs`;
+            } else {
+                resetStats();
+            }
+        }
+
+        // Helper to clear statistics back to zeroes
+        function resetStats() {
+            document.getElementById('stat-total-raw').innerText = `0 in`;
+            document.getElementById('stat-total-cut').innerText = `0 in`;
+            document.getElementById('stat-yield').innerText = `0.0%`;
+            document.getElementById('stat-waste').innerText = `0.0%`;
+            document.getElementById('stat-offcuts').innerText = `0 pcs`;
+            document.getElementById('unassigned-warning').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
